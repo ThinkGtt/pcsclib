@@ -8,7 +8,7 @@ namespace PCSCLib.ARC122U
 {
     public class ARC122ULedsBuzzerCommand : ARC122UCommand
     {
-        private byte[] Command { get; set; } = new byte[9];
+        protected override byte[] Command { get; set; }
 
         public enum LedBlink
         {
@@ -49,20 +49,18 @@ namespace PCSCLib.ARC122U
             P2 |= 0x10;
             P2 |= 0x20;
 
-            Command[0] = Class;
-            Command[1] = Instruction;
-            Command[2] = P1;
-            Command[3] = P2;
-            Command[4] = LcLe;
-            Command[5] = hundredMillisecondsT1;
-            Command[6] = hundredMillisecondsT2;
-            Command[7] = numberOfRepetitions;
-            Command[8] = (byte)buzzerStatus;
-        }
-
-        public override byte[] GetCommand()
-        {
-            return Command;
+            Command = new byte[]
+            {
+                Class,
+                Instruction,
+                P1,
+                P2,
+                LcLe,
+                hundredMillisecondsT1,
+                hundredMillisecondsT2,
+                numberOfRepetitions,
+                (byte)buzzerStatus
+            };
         }
     }
 }
