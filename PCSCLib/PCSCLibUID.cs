@@ -1,7 +1,7 @@
-﻿using System;
-using PCSC;
+﻿using PCSC;
 using PCSC.Iso7816;
 using PCSCLib.ARC122U;
+using System;
 
 namespace PCSCLib
 {
