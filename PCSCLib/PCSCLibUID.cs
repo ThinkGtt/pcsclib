@@ -33,6 +33,7 @@ namespace PCSCLib
                                 readerName,
                                 SCardHelper.StringifyError(sc));
                         }
+                        this.PlayStatus(readerName, false);
                         return;
                     }
 
@@ -52,6 +53,7 @@ namespace PCSCLib
                         {
                             Console.WriteLine("Could not begin transaction.");
                         }
+                        this.PlayStatus(readerName, false);
                         return;
                     }
 
@@ -100,19 +102,19 @@ namespace PCSCLib
                         onPCSCCardUIDLoadedRaised(new PCSCCardUIDLoadedEventArgs(readerName, SW1, SW2, UID));
 
 
-                        PlayWithLedsAndBuzzer(readerName);
+                        //PlayWithLedsAndBuzzer(readerName);
                     }
                 }
             }
         }
 
 
-        private void PlayWithLedsAndBuzzer(string readerName)
+        public void PlayWithLedsAndBuzzer(string readerName)
         {
-            if (!readerName.ToUpper().Contains("ACR122U"))
+            if (!readerName.ToUpper().Contains("ACR122"))
             {
                 return;
-            }            
+            }
             using (var context = MyContextFactory.Establish(SCardScope.System))
             {
                 using (var rfidReader = new SCardReader(context))
@@ -140,14 +142,18 @@ namespace PCSCLib
                     }
 
                     ARC122ULedsBuzzerCommand command = new ARC122ULedsBuzzerCommand(
-                        ARC122ULedsBuzzerCommand.LedStatus.On,
-                        ARC122ULedsBuzzerCommand.LedStatus.On,
-                        ARC122ULedsBuzzerCommand.LedBlink.Blink,
-                        ARC122ULedsBuzzerCommand.LedBlink.NoBlink,
-                        ARC122ULedsBuzzerCommand.BuzzerStatus.Off,
-                        2,
-                        5,
-                        5
+                        ARC122ULedsBuzzerCommand.LedState.Off,
+                        ARC122ULedsBuzzerCommand.LedState.On,
+                        ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                        ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                        ARC122ULedsBuzzerCommand.LedState.Off,
+                        ARC122ULedsBuzzerCommand.LedState.On,
+                        ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                        ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                        ARC122ULedsBuzzerCommand.BuzzerStatus.OnT1,
+                        1,
+                        1,
+                        4
                     );
 
 
@@ -173,7 +179,7 @@ namespace PCSCLib
                         }
 
                         var responseApdu = new ResponseApdu(receiveBuffer, IsoCase.Case2Short, rfidReader.ActiveProtocol);
-                        if (ConsoleOutEnabled)
+                        //if (ConsoleOutEnabled)
                         {
                             Console.WriteLine("SW1: {0:X2}, SW2: {1:X2}\nUid: {2}",
                                 responseApdu.SW1,
@@ -192,5 +198,198 @@ namespace PCSCLib
                 }
             }
         }
+
+        public bool PlayStatus(string readerName, bool status)
+        {
+            if (!readerName.ToUpper().Contains("ACR122"))
+            {
+                return false;
+            }
+            using (var context = MyContextFactory.Establish(SCardScope.System))
+            {
+                using (var rfidReader = new SCardReader(context))
+                {
+                    var sc = rfidReader.Connect(readerName, SCardShareMode.Shared, SCardProtocol.Any);
+                    if (sc != SCardError.Success)
+                    {
+                        if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("Could not connect to reader {0}:\n{1}",
+                                readerName,
+                                SCardHelper.StringifyError(sc));
+                        }
+                        return false;
+                    }
+
+                    sc = rfidReader.BeginTransaction();
+                    if (sc != SCardError.Success)
+                    {
+                        if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("Could not begin transaction.");
+                        }
+                        return false;
+                    }
+
+                    ARC122ULedsBuzzerCommand command;
+
+                    if (status)
+                    {
+                        command = new ARC122ULedsBuzzerCommand(
+                            ARC122ULedsBuzzerCommand.LedState.Off,
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                            ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                            ARC122ULedsBuzzerCommand.LedState.Off,
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                            ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                            ARC122ULedsBuzzerCommand.BuzzerStatus.OnT1,
+                            1,
+                            1,
+                            9
+                        );
+                    }
+                    else
+                    {
+                        command = new ARC122ULedsBuzzerCommand(
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                            ARC122ULedsBuzzerCommand.LedStateMask.Update,
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedState.On,
+                            ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                            ARC122ULedsBuzzerCommand.LedStateMask.NoChange,
+                            ARC122ULedsBuzzerCommand.BuzzerStatus.OnT1,
+                            1,
+                            4,
+                            6
+                        );
+                    }
+
+                    //var receivePci = new SCardPCI(); // IO returned protocol control information.
+                    using (var receivePci = new SCardPCI())
+                    {
+                        var sendPci = SCardPCI.GetPci(rfidReader.ActiveProtocol);
+
+                        var receiveBuffer = new byte[256];
+
+                        sc = rfidReader.Transmit(
+                            sendPci, // Protocol Control Information (T0, T1 or Raw)
+                            command.GetCommand(), // command APDU
+                            receivePci, // returning Protocol Control Information
+                            ref receiveBuffer); // data buffer
+
+                        if (sc != SCardError.Success)
+                        {
+                            if (ConsoleOutEnabled)
+                            {
+                                Console.WriteLine("Error: " + SCardHelper.StringifyError(sc));
+                            }
+                            return false;
+                        }
+
+                        var responseApdu = new ResponseApdu(receiveBuffer, IsoCase.Case2Short, rfidReader.ActiveProtocol);
+                        //if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("SW1: {0:X2}, SW2: {1:X2}\nUid: {2}",
+                                responseApdu.SW1,
+                                responseApdu.SW2,
+                                responseApdu.HasData ? BitConverter.ToString(responseApdu.GetData()) : "No uid received");
+                        }
+                        rfidReader.EndTransaction(SCardReaderDisposition.Leave);
+                        rfidReader.Disconnect(SCardReaderDisposition.Reset);
+
+
+                        string SW1 = string.Format("{0:X2}", responseApdu.SW1);
+                        string SW2 = string.Format("{0:X2}", responseApdu.SW2);
+
+                        byte[] _data = responseApdu.GetData();
+                    }
+                }
+                return true;
+            }
+        }
+
+
+        public bool DisableBuzzerOnCardDetected(string readerName)
+        {
+            if (!readerName.ToUpper().Contains("ACR122"))
+            {
+                return false;
+            }
+            using (var context = MyContextFactory.Establish(SCardScope.System))
+            {
+                using (var rfidReader = new SCardReader(context))
+                {
+                    var sc = rfidReader.Connect(readerName, SCardShareMode.Shared, SCardProtocol.Any);
+                    if (sc != SCardError.Success)
+                    {
+                        if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("Could not connect to reader {0}:\n{1}",
+                                readerName,
+                                SCardHelper.StringifyError(sc));
+                        }
+                        return false;
+                    }
+
+                    sc = rfidReader.BeginTransaction();
+                    if (sc != SCardError.Success)
+                    {
+                        if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("Could not begin transaction.");
+                        }
+                        return false;
+                    }
+
+                    ARC122UBuzzerOffCardDetectedCommand command = new ARC122UBuzzerOffCardDetectedCommand();
+
+                    //var receivePci = new SCardPCI(); // IO returned protocol control information.
+                    using (var receivePci = new SCardPCI())
+                    {
+                        var sendPci = SCardPCI.GetPci(rfidReader.ActiveProtocol);
+
+                        var receiveBuffer = new byte[256];
+
+                        sc = rfidReader.Transmit(
+                            sendPci, // Protocol Control Information (T0, T1 or Raw)
+                            command.GetCommand(), // command APDU
+                            receivePci, // returning Protocol Control Information
+                            ref receiveBuffer); // data buffer
+
+                        if (sc != SCardError.Success)
+                        {
+                            if (ConsoleOutEnabled)
+                            {
+                                Console.WriteLine("Error: " + SCardHelper.StringifyError(sc));
+                            }
+                            return false;
+                        }
+
+                        var responseApdu = new ResponseApdu(receiveBuffer, IsoCase.Case2Short, rfidReader.ActiveProtocol);
+                        //if (ConsoleOutEnabled)
+                        {
+                            Console.WriteLine("SW1: {0:X2}, SW2: {1:X2}\nUid: {2}",
+                                responseApdu.SW1,
+                                responseApdu.SW2,
+                                responseApdu.HasData ? BitConverter.ToString(responseApdu.GetData()) : "No uid received");
+                        }
+                        rfidReader.EndTransaction(SCardReaderDisposition.Leave);
+                        rfidReader.Disconnect(SCardReaderDisposition.Reset);
+
+
+                        string SW1 = string.Format("{0:X2}", responseApdu.SW1);
+                        string SW2 = string.Format("{0:X2}", responseApdu.SW2);
+
+                        byte[] _data = responseApdu.GetData();
+                    }
+                }
+                return true;
+            }
+        }
+
     }
 }

@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ARC122U\ARC122UBuzzerEnabledCommand.cs" />
+    <Compile Include="ARC122U\ARC122UBuzzerOffCardDetectedCommand.cs" />
     <Compile Include="ARC122U\ARC122UCommand.cs" />
     <Compile Include="ARC122U\ARC122ULedsBuzzerCommand.cs" />
     <Compile Include="Mifare1k\GeneralAuthenticate.cs" />

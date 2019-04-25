@@ -2,5 +2,6 @@
 {
     public class PCSCCardReadersReloadedEventArgs
     {
+        public string[] Readers;
     }
 }

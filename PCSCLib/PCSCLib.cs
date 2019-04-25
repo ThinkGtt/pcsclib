@@ -55,6 +55,8 @@ namespace PCSCLib
                 Monitor = new SCardMonitor(MyContextFactory, SCardScope.System);
                 Monitor.Start(Readers);
                 AttachToAllEvents();
+
+                onPCSCCardReadersReloaded(new PCSCCardReadersReloadedEventArgs { Readers = newReaders });
             }
         }
 
@@ -141,6 +143,13 @@ namespace PCSCLib
         {
             Monitor?.Dispose();
             Monitor = null;
-        }    
+        }
+
+        public string[] GetReaders()
+        {
+            string[] value = new string[Readers.Length];
+            Readers.CopyTo(value, 0);
+            return value;
+        }
     }
 }
