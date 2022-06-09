@@ -3,6 +3,7 @@ using PCSC.Iso7816;
 using PCSCLib.Mifare1k;
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PCSCLib
@@ -29,7 +30,7 @@ namespace PCSCLib
         }
 
         private string[] Readers { get; set; } = new string[] { };
-        protected static IContextFactory MyContextFactory { get; } = ContextFactory.Instance;
+        protected static IContextFactory MyContextFactory { private set; get; } = ContextFactory.Instance;
         SCardMonitor Monitor { get; set; }
 
         public PCSCLib()
@@ -124,9 +125,20 @@ namespace PCSCLib
     
         protected string[] GetReaderNames()
         {
-            using (var context = MyContextFactory.Establish(SCardScope.System))
+            while (true)
             {
-                return context.GetReaders();
+                try
+                {
+                    using (var context = MyContextFactory.Establish(SCardScope.System))
+                    {
+                        return context.GetReaders();
+                    }
+                }
+                catch (PCSC.NoServiceException)
+                {
+                    Thread.Sleep(5000);
+                    MyContextFactory = ContextFactory.Instance;
+                }
             }
         }    
 
